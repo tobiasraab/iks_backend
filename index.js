@@ -23,6 +23,8 @@ portSerial.pipe(parser)
 let state = ['passive', 'passive', 'passive', 'passive', 'passive', 'passive', 'passive', 'passive', 'passive', 'passive', 'passive', 'passive']
 let lastState = ['passive', 'passive', 'passive', 'passive', 'passive', 'passive', 'passive', 'passive', 'passive', 'passive', 'passive', 'passive']
 let focusState = undefined
+
+
 /* Serialport parser */
 let lastMsg = undefined
 parser.on('data', (data)=>{
@@ -30,40 +32,19 @@ parser.on('data', (data)=>{
     let msg  = JSON.parse(data.toString())
     console.log("SP_INCOMING_MSG: ", msg)
 
-    // set state
-    if(msg.towerBottomPieceActive === 1){
-      if(lastState[0] === 'passive'){
-        state[0] = 'focus'
-      }
-      else {
-        state[0] = 'active'
-      }
-      lastState[0] = state[0]
-    }
-    else if(msg.towerBottomPieceActive === 0){
-      state[0] = 'passive'
-    }
+    // set state of the pieces
+    setState(msg.towerBottomPieceActive, 0)
+    setState(msg.towerTopPieceActive, 1)
 
-    if(msg.towerTopPieceActive === 1){
-      if(lastState[1] === 'passive'){
-        state[1] = 'focus'
-      }
-      else {
-        state[1] = 'active'
-      }
-    }
-    else if(msg.towerTopPieceActive === 0){
-      state[1] = 'passive'
-    }
-
-    // check focus
+    // check wether there is a focused piece
     focusState = false
     for(let i=0; i < state.length; i++){
       if(state[i]==='focus'){
         focusState = true
       }
     }
-    console.log(focusState)
+
+    // if there is no focused piece => set one 
     if(focusState === false){
       for(let i = state.length; i >= 0; i--){
         if(state[i] === 'active'){
@@ -72,10 +53,15 @@ parser.on('data', (data)=>{
         }
       }
     }
+    // update last state
     lastState = state
 
+    console.log("IO_EMIT: ", state)
+    // send data to nuxt app
     io.emit('data', state)
   }
+
+  // update lastmsg
   lastMsg = data
 })
 
@@ -90,3 +76,21 @@ io.on('connection', () => {
 server.listen(port, () => {
     console.log('listening on: ', port);
 });
+
+
+
+//functions
+function setState(piece, index){
+  if(piece === 1){
+    if(lastState[index] === 'passive'){
+      state[index] = 'focus'
+    }
+    else {
+      state[index] = 'active'
+    }
+    lastState[index] = state[index]
+  }
+  else if(piece === 0){
+    state[index] = 'passive'
+  }
+}
